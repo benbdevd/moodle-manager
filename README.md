@@ -12,7 +12,7 @@ Fill in the required data in the file.
 - username and password
     - Your login credentials
 - course_type
-    - either stnd_moodle or cezar at the moment
+    - either std or cezar at the moment
 - semester
     - the semester in which the course takes place in the form <year>-<first letter of season>
     - ex 2019-F
