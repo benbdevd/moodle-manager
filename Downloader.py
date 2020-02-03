@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import json
 
 
-def get_sesh_id(session):
+def get_session_id(session):
     soup = BeautifulSoup(session.get(
         'https://moodle31.upei.ca/login/index.php').text, "html.parser")
     return soup.find('input', attrs={'name': 'logintoken'})['value']
@@ -13,7 +13,7 @@ def get_sesh_id(session):
 def login():
     session = requests.Session()
     payload = {
-        'logintoken': get_sesh_id(session),
+        'logintoken': get_session_id(session),
         'username': config["username"],
         'password': config["password"]
     }
@@ -45,7 +45,7 @@ def print_downloaded():
     print('================================================================================')
 
 
-def download_stnd_moodle():
+def download_std_moodle():
     website = session.get("https://moodle31.upei.ca/course/view.php?id="
                           + str(config["course_id"]))
     html = website.text
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     session = login()
 
     if config["course_type"] == "stnd_moodle":
-        download_stnd_moodle()
+        download_std_moodle()
     elif config["course_type"] == "cezar":
         download_cezar()
 
