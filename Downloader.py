@@ -92,17 +92,17 @@ def download_cezar():
         doc = session.get(link).content
         write_doc(doc, name)
 
+if __name__== "__main__":
+    config = json.loads(open('config.json', 'r').read())
+    session = login()
 
-config = json.loads(open('config.json', 'r').read())
-session = login()
+    if config["course_type"] == "stnd_moodle": download_stnd_moodle()
+    elif config["course_type"] == "cezar": download_cezar()
 
-if config["course_type"] == "stnd_moodle": download_stnd_moodle()
-elif config["course_type"] == "cezar": download_cezar()
-
-config_file = open('config.json', 'w')
-pretty_json = json.dumps(config,
-    indent=4, 
-    separators=(',', ': ')
-    )
-config_file.write(pretty_json)
-config_file.close()
+    config_file = open('config.json', 'w')
+    pretty_json = json.dumps(config,
+        indent=4, 
+        separators=(',', ': ')
+        )
+    config_file.write(pretty_json)
+    config_file.close()
