@@ -20,4 +20,4 @@ Only modify this file if you would like to manually erase your username/password
 
 [Doebi's MoodleScraper](https://github.com/doebi/MoodleScraper) for some inspirations
 
-[Patorjk Taag](http://patorjk.com/software/taag) for ASCII splash generation
+[Patorjk Text to ASCII Art Generator](http://patorjk.com/software/taag) for ASCII splash generation
