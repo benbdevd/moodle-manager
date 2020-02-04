@@ -27,7 +27,14 @@ splash = r"""
                 `--'  `"'--'   '--'`--'  `" `'---'
 """
 
-baseurl = 'https://moodle31.upei.ca/'
+# GLOBALS
+session = ''
+server_url = ''
+
+# CONSTANTS
+LOGIN_URLPART = 'login/index.php'
+MY_COURSES_URLPART = 'my/?myoverviewtab=courses'
+COURSE_VIEW_URLPART = 'course/view.php?id='
 
 
 class Style:
