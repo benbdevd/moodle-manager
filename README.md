@@ -8,8 +8,16 @@ There is no guarantee moodle_manager will work with any other moodle servers as 
 
 Simply run `python3 moodle_manager.py` to begin!
 
-### Persistence File
+## Persistent Data File
 
 moodle_manager will create a `.moodle_data.json` file to persist some data accross sessions. 
 
 Only modify this file if you would like to manually erase your username/password from the file, or manually erase the download history.
+
+## Acknowledgements
+
+[Alexander Cairns' original moodle manager](https://github.com/Alexander-Cairns/moodle-manager) for original code and idea
+
+[Doebi's MoodleScraper](https://github.com/doebi/MoodleScraper) for some inspirations
+
+[Patorjk Taag](http://patorjk.com/software/taag) for ASCII splash generation
