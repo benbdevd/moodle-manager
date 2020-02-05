@@ -143,18 +143,16 @@ def get_session_id():
 
 
 def main_menu():
-    choice = input('''
-    MAIN MENU
-    1. Get all documents from current semester courses
-    2. Get all documents from all accessible courses
-    ''')
+    choice = int(input('''
+MENU
+1. Get all documents from current semester courses
+2. Get all documents from all accessible courses
 
-
-def get_course_ids(get_all):
-    if get_all:
-        return get_all_course_ids
-    else:
-        return get_current_course_ids
+'''))
+    if choice == 1:
+        return get_current_course_ids()
+    elif choice == 2:
+        return get_all_course_ids()
 
 
 def get_all_course_ids():
@@ -173,9 +171,9 @@ def get_current_course_ids():
 
 
 def get_my_courses_soup():
-    request = session.get(server_url + MY_COURSES_URLPART)
-    if(request.status_code == 200):
-        return BS(request.text, 'html.parser')
+    response = session.get(server_url + MY_COURSES_URLPART)
+    if(response.status_code == 200):
+        return BS(response.text, 'html.parser')
     else:
         return -1
 
@@ -186,10 +184,21 @@ def get_course_ids_from_elements(elements):
     return course_ids
 
 
-def download_std_moodle(course_id):
-    website = session.get(server_url + COURSE_VIEW_URLPART + course_id)
-    html = website.text
-    soup = BS(html, 'html.parser')
+def download_all_documents_from_course_set(course_ids):
+    for id in course_ids:
+        if is_a_cezar_course(id):
+            download_all_from_cezar_course(id)
+        else:
+            download_all_from_std_course(id)
+
+
+def is_a_cezar_course(course_id):
+    pass
+
+
+def download_all_from_std_course(course_id):
+    response = session.get(server_url + COURSE_VIEW_URLPART + course_id)
+    soup = BS(response.text, 'html.parser')
     links = soup.findAll(class_='activityinstance')
 
     print('Downloading:')
@@ -201,13 +210,13 @@ def download_std_moodle(course_id):
         #     continue
         print(name)
         url = link.a['href']
-        doc = get_moodle_doc(url)
-        write_doc(doc['doc'], doc['name'])
+        document = get_moodle_document(url)
+        write_document(document['doc'], document['name'])
         # config['downloaded'].append(name)
-        print('\t', doc['name'])
+        print('\t', document['name'])
 
 
-def download_cezar():
+def download_all_from_cezar_course(course_id):
     # semester = config['semester'].split('-')
     # year = semester[0]
     # season = semester[1]
@@ -228,25 +237,26 @@ def download_cezar():
     print('===========')
 
     # for link in links:
+    #     link = link[link.rfind('http'):]
     #     name = link[(link.rfind('/')+1):]
     #     print(name)
-    #     doc = session.get(link).content
-    #     write_doc(doc, name)
+    #     document = session.get(link).content
+    #     write_document(document, name)
 
 
-def get_moodle_doc(url):
-    doc = session.get(url)
-    disp = doc.headers['Content-disposition']
-    doc_name = re.findall('filename.+', disp)[0].split('"')[1]
+def get_moodle_document(url):
+    document = session.get(url)
+    disp = document.headers['Content-disposition']
+    document_name = re.findall('filename.+', disp)[0].split('"')[1]
     return {
-        'doc': doc.content,
-        'name': doc_name
+        'document': document.content,
+        'name': document_name
     }
 
 
-def write_doc(doc, name):
+def write_document(document, name):
     file = open(name, 'wb')
-    file.write(doc)
+    file.write(document)
     file.close
 
 
@@ -279,12 +289,15 @@ if __name__ == '__main__':
 
     write_to_persist()  # save requested data upon login
 
-    print('All moodle course IDs: ' + str(get_all_course_ids()))
-    print('Current semester moodle course IDs: ' + str(get_current_course_ids()))
+    course_ids = main_menu()
+
+    print('Selected courses:' + str(course_ids))
 
     write_to_persist()  # update download history
 
 
 # TODO: Notify user if login unsuccessful and why:
-    # user/pass incorrect
+    # user/pass incorrect:
+    # initial response doesn't return a useful code, need to catch later on
     # bad url
+    # should be able to catch in initial response obv.
