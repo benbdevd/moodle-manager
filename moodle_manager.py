@@ -36,12 +36,12 @@ LOGIN_URLPART = 'login/index.php'
 MY_COURSES_URLPART = 'my/?myoverviewtab=courses'
 COURSE_VIEW_URLPART = 'course/view.php?id='
 PERSIST_KEYS = ['server_url', 'username', 'password', 'download_history']
-PERSIST_CHOICE_PROMPTS = ['[P]assword Username Server URL',
-                          '[U]sername Server URL', '[N]othing']
+PERSIST_CHOICE_PROMPTS = ['[P]assword + Username + Server URL',
+                          '[U]sername + Server URL', '[N]othing']
 PERSIST_ENUMS = [prompt[1] for prompt in PERSIST_CHOICE_PROMPTS]
 DEFAULT_PERSIST_ENUM = PERSIST_ENUMS[1]
 DEFAULT_PERSIST_PATH = './.moodle_data.json'
-DEFAULT_DOWNLOAD_PATH = './moodle_course_documents'
+DEFAULT_DOWNLOAD_PATH = './moodle_course_documents/'
 CEZAR_URL_FILTER = 'www.smcs.upei.ca/~ccampeanu'
 MOODLE_DOCUMENT_FILTER = 'mod/resource'
 
@@ -49,7 +49,7 @@ MOODLE_DOCUMENT_FILTER = 'mod/resource'
 # GLOBALS
 session = requests.Session()
 server_url = ''
-download_history = set()
+download_history = dict()
 download_path = DEFAULT_DOWNLOAD_PATH
 persist_dict = defaultdict(lambda: '')
 persist_path = DEFAULT_PERSIST_PATH
@@ -69,12 +69,17 @@ def s_print(s, style):
     print(style + s + Style._END)
 
 
+def s_print_after(s, style, a):
+    print(s, end='')
+    s_print(a, style)
+
+
 def load_from_persist():
     global persist_file, persist_dict, download_history
     if os.path.exists(persist_path):
         with open(persist_path, 'r') as persist_file:
             persist_dict = json.load(persist_file)
-            download_history = set(persist_dict['download_history'])
+            download_history = persist_dict['download_history']
 
 
 def get_login_data():
@@ -180,6 +185,8 @@ def get_page_soup(urlpart):
     if(response.status_code == 200):
         return BS(response.text, 'html.parser')
     else:
+        print(response.url)
+        print(response.status_code)
         return -1
 
 
@@ -200,6 +207,7 @@ def get_course_ids_from_soup(soup):
 
 def download_all_documents_from_course_set(course_ids):
     [download_all_documents_from_course(course_id) for course_id in course_ids]
+    s_print_after('ALL SELECTED COURSES ', Style.GREEN, 'DONE')
 
 
 def download_all_documents_from_course(course_id):
@@ -212,6 +220,7 @@ def download_all_documents_from_course(course_id):
         download_all_from_std_course(links, course_name)
     else:
         download_all_from_cezar_course(links, course_name)
+    s_print_after('Downloading ' + course_name, Style.GREEN, ' DONE')
 
 
 def is_cezar_course(links):
@@ -223,11 +232,16 @@ def download_all_from_std_course(links, course_name):
     path = download_path + course_name + '/'
     document_links = [link for link in links if (
         server_url + MOODLE_DOCUMENT_FILTER) in link]
+
     for link in document_links:
-        document = get_moodle_document(link)
-        print('\t', document[1] + '...')
-        write_document(document[0], path, document[1])
-        download_history.add(document[2])
+        if link not in download_history.keys():
+            document = get_moodle_document(link)
+            s_print_after('\t' + document[1], Style.GREEN, ' DONE')
+            write_document(document[0], path, document[1])
+            download_history[document[2]] = document[1]
+        else:
+            s_print_after(
+                '\t' + download_history[link], Style.YELLOW, ' PREVIOUSLY DOWNLOADED')
 
 
 def download_all_from_cezar_course(links, course_name):
@@ -277,7 +291,7 @@ def write_to_persist():
         if persist_choice == PERSIST_ENUMS[2]:
             for key in PERSIST_KEYS:
                 out_dict[key] = ''
-        out_dict['download_history'] = list(download_history)
+        out_dict['download_history'] = download_history
         out_dict['persist_choice'] = persist_choice
         if persist_choice in PERSIST_ENUMS and persist_choice != '':
             json.dump(out_dict, persist_file)
@@ -309,7 +323,7 @@ if __name__ == '__main__':
     # user/pass incorrect:
     # initial response doesn't return a useful code, need to catch later on
 
-    # bad url
+    # catch bad urls:
     # should be able to catch in initial response obv.
 
     # more menu options
