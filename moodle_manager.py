@@ -6,6 +6,7 @@ import os
 import re
 import json
 import requests
+import urllib.parse
 
 splash = r"""
                    .-'''-.       .-'''-.
@@ -232,19 +233,20 @@ def is_cezar_course(links):
 def download_all_from_std_course(links, course_name):
     path = download_path + course_name + '/'
 
-    document_links = [link for link in links if (
+    [download_document_from_std_course(link, path) for link in links if (
         server_url + MOODLE_DOCUMENT_FILTER) in link]
 
-    for link in document_links:
-        document_id = link.split('=')[1]
-        if document_id not in download_history.keys():
-            document = get_moodle_document(document_id)
-            s_print_after('\t' + document[1], Style.GREEN, ' DONE')
-            write_document(document[0], path, document[1])
-            download_history[document_id] = document[1]
-        else:
-            s_print_after(
-                '\t' + download_history[document_id], Style.YELLOW, ' PREVIOUSLY DOWNLOADED')
+
+def download_document_from_std_course(document_link, path):
+    document_id = document_link.split('=')[1]
+    if document_id not in download_history.keys():
+        document = get_moodle_document(document_id)
+        s_print_after('\t' + document[1], Style.GREEN, ' DONE')
+        write_document(document[0], path, document[1])
+        download_history[document_id] = document[1]
+    else:
+        s_print_after(
+            '\t' + download_history[document_id], Style.YELLOW, ' PREVIOUSLY DOWNLOADED')
 
 
 def download_all_from_cezar_course(links, course_name):
@@ -275,8 +277,8 @@ def download_all_from_cezar_course(links, course_name):
 
 def get_moodle_document(document_id):
     document = session.get(server_url + MOODLE_DOCUMENT_URLPART + document_id)
-    disp = document.headers['Content-disposition']
-    document_name = re.findall('filename.+', disp)[0].split('"')[1]
+    path_section = urllib.parse.urlparse(document.url).path.split('/')[-1]
+    document_name = urllib.parse.unquote(path_section)
     return (document.content, document_name)
 
 
@@ -287,16 +289,16 @@ def write_document(document, path, filename):
 
 
 def write_to_persist():
-    out_dict = persist_dict
-    with open(persist_path, 'w+') as persist_file:
-        if persist_choice == PERSIST_ENUMS[1]:
-            out_dict['password'] = ''
-        if persist_choice == PERSIST_ENUMS[2]:
-            for key in PERSIST_KEYS:
-                out_dict[key] = ''
-        out_dict['download_history'] = download_history
-        out_dict['persist_choice'] = persist_choice
-        if persist_choice in PERSIST_ENUMS and persist_choice != '':
+    if persist_choice in PERSIST_ENUMS and persist_choice != '':
+        out_dict = persist_dict
+        with open(persist_path, 'w+') as persist_file:
+            if persist_choice == PERSIST_ENUMS[1]:
+                out_dict['password'] = ''
+            if persist_choice == PERSIST_ENUMS[2]:
+                for key in PERSIST_KEYS:
+                    out_dict[key] = ''
+            out_dict['download_history'] = download_history
+            out_dict['persist_choice'] = persist_choice
             json.dump(out_dict, persist_file)
 
 
