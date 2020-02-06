@@ -6,7 +6,11 @@ There is no guarantee moodle_manager will work with any other moodle servers as 
 
 ## Usage
 
-Simply run `python3 moodle_manager.py` to begin!
+Install dependencies:
+* requests
+* bs4
+
+Then, simply run `python3 moodle_manager.py` to begin!
 
 ## Persistent Data File
 
