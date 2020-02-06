@@ -1,6 +1,7 @@
 from collections import defaultdict
 from getpass import getpass
 from bs4 import BeautifulSoup as BS
+from pathlib import Path
 import os
 import re
 import json
@@ -38,13 +39,18 @@ PERSIST_KEYS = ['server_url', 'username', 'password', 'download_history']
 PERSIST_CHOICE_PROMPTS = ['[P]assword Username Server URL',
                           '[U]sername Server URL', '[N]othing']
 PERSIST_ENUMS = [prompt[1] for prompt in PERSIST_CHOICE_PROMPTS]
-DEFAULT_PERSIST_ENUM = PERSIST_ENUMS[2]
+DEFAULT_PERSIST_ENUM = PERSIST_ENUMS[1]
 DEFAULT_PERSIST_PATH = './.moodle_data.json'
+DEFAULT_DOWNLOAD_PATH = './moodle_course_documents'
+CEZAR_URL_FILTER = 'www.smcs.upei.ca/~ccampeanu'
+MOODLE_DOCUMENT_FILTER = 'mod/resource'
 
 
 # GLOBALS
 session = requests.Session()
 server_url = ''
+download_history = set()
+download_path = DEFAULT_DOWNLOAD_PATH
 persist_dict = defaultdict(lambda: '')
 persist_path = DEFAULT_PERSIST_PATH
 persist_choice = ''
@@ -64,16 +70,16 @@ def s_print(s, style):
 
 
 def load_from_persist():
-    global persist_file, persist_dict
+    global persist_file, persist_dict, download_history
     if os.path.exists(persist_path):
         with open(persist_path, 'r') as persist_file:
             persist_dict = json.load(persist_file)
+            download_history = set(persist_dict['download_history'])
 
 
 def get_login_data():
     global server_url, persist_dict
     login_data = persist_dict
-    print(persist_dict)
     return check_for_missing_data(login_data)
 
 
@@ -114,11 +120,11 @@ def get_persist_choice_from_user():
 
 def setup_for_scraping(server_url_local, username, password):
     global server_url
-    server_url = validate_server_url(server_url_local)
+    server_url = clean_server_url(server_url_local)
     login(username, password)
 
 
-def validate_server_url(server_url):
+def clean_server_url(server_url):
     server_url = server_url.replace('http://', 'https://')
     if not server_url.startswith('https://'):
         server_url = 'https://' + server_url
@@ -142,16 +148,20 @@ def get_session_id():
 
 
 def main_menu():
-    choice = int(input('''
+    choice = ''
+    while choice not in '12' or choice == '':
+        choice = (input('''
 MENU
 1. Get all documents from current semester courses
 2. Get all documents from all accessible courses
 
 '''))
-    if choice == 1:
+    if choice == '1':
         return get_current_course_ids()
-    elif choice == 2:
+    elif choice == '2':
         return get_all_course_ids()
+    else:
+        print('Please enter a menu NUMBER')
 
 
 def get_all_course_ids():
@@ -179,43 +189,48 @@ def get_course_ids_from_soup(soup):
         '=')[1] for element in elements]
     return course_ids
 
+# get_course_ids_from_soup ALTERNATIVE - zip name at this point
+    # elements = temp.find_all('a')
+    # course_a_tags = [a_tag for a_tag in elements if COURSE_VIEW_URLPART in a_tag.attrs['href']
+    #                   and not any(map(lambda x: True if '<div ' in str(x) else False, a_tag.contents))]
+    # course_ids = [course.attrs['href'].split('=')[1] for course in course_a_tags]
+    # course_names = [course.contents[0] for course in course_a_tags]
+    # return(list(zip(course_ids, course_names)))
+
 
 def download_all_documents_from_course_set(course_ids):
-    for id in course_ids:
-        if is_a_cezar_course(id):
-            download_all_from_cezar_course(id)
-        else:
-            download_all_from_std_course(id)
+    [download_all_documents_from_course(course_id) for course_id in course_ids]
 
 
-def is_a_cezar_course(course_id):
+def download_all_documents_from_course(course_id):
     soup = get_page_soup(COURSE_VIEW_URLPART + course_id)
-    CEZAR_URL = 'www.smcs.upei.ca/~ccampeanu'
+    course_name = str(soup.find('h1').contents[0])
+    print('Downloading ' + course_name + '...')
     links = [str(link.get('href')) for link in soup.find_all('a')]
-    cezar_links = [link for link in links if CEZAR_URL in link]
+
+    if not is_cezar_course(links):
+        download_all_from_std_course(links, course_name)
+    else:
+        download_all_from_cezar_course(links, course_name)
+
+
+def is_cezar_course(links):
+    cezar_links = [link for link in links if CEZAR_URL_FILTER in link]
     return len(cezar_links) > 0
 
 
-def download_all_from_std_course(course_id):
-    soup = get_page_soup(COURSE_VIEW_URLPART + course_id)
-    links = soup.find_all(class_='activityinstance')
-
-    print('Downloading:')
-    print('===========')
-
-    for link in links:
-        name = link.find(class_='instancename').text
-        # if config['match'] not in name.lower() or name in config['downloaded']:
-        #     continue
-        print(name)
-        url = link.a['href']
-        document = get_moodle_document(url)
-        write_document(document['document'], document['name'])
-        # config['downloaded'].append(name)
-        print('\t', document['name'])
+def download_all_from_std_course(links, course_name):
+    path = download_path + course_name + '/'
+    document_links = [link for link in links if (
+        server_url + MOODLE_DOCUMENT_FILTER) in link]
+    for link in document_links:
+        document = get_moodle_document(link)
+        print('\t', document[1] + '...')
+        write_document(document[0], path, document[1])
+        download_history.add(document[2])
 
 
-def download_all_from_cezar_course(course_id):
+def download_all_from_cezar_course(links, course_name):
     # semester = config['semester'].split('-')
     # year = semester[0]
     # season = semester[1]
@@ -232,29 +247,25 @@ def download_all_from_cezar_course(course_id):
     # html = website.text
     # links = re.findall('"(http://.*4.pdf?)"', html)
 
-    print('Downloading:')
-    print('===========')
-
     # for link in links:
     #     link = link[link.rfind('http'):]
     #     name = link[(link.rfind('/')+1):]
     #     print(name)
     #     document = session.get(link).content
     #     write_document(document, name)
+    print('CEZAR COURSE: ' + course_name + ' - NOT YET SUPPORTED')
 
 
 def get_moodle_document(url):
     document = session.get(url)
     disp = document.headers['Content-disposition']
     document_name = re.findall('filename.+', disp)[0].split('"')[1]
-    return {
-        'document': document.content,
-        'name': document_name
-    }
+    return (document.content, document_name, url)
 
 
-def write_document(document, path):
-    with open(path, 'wb') as file:
+def write_document(document, path, filename):
+    Path(path).mkdir(parents=True, exist_ok=True)
+    with open(path + filename, 'wb') as file:
         file.write(document)
 
 
@@ -264,9 +275,9 @@ def write_to_persist():
         if persist_choice == PERSIST_ENUMS[1]:
             out_dict['password'] = ''
         if persist_choice == PERSIST_ENUMS[2]:
-            out_dict = {'download_history': persist_dict['download_history']}
             for key in PERSIST_KEYS:
                 out_dict[key] = ''
+        out_dict['download_history'] = list(download_history)
         out_dict['persist_choice'] = persist_choice
         if persist_choice in PERSIST_ENUMS and persist_choice != '':
             json.dump(out_dict, persist_file)
@@ -289,15 +300,18 @@ if __name__ == '__main__':
 
     course_ids = main_menu()
 
-    out = list(zip(course_ids, map(is_a_cezar_course, course_ids)))
-
-    print('Selected courses:' + str(out))
+    download_all_documents_from_course_set(course_ids)
 
     write_to_persist()  # update download history
 
 
-# TODO: Notify user if login unsuccessful and why:
+# TODOS:
     # user/pass incorrect:
     # initial response doesn't return a useful code, need to catch later on
+
     # bad url
     # should be able to catch in initial response obv.
+
+    # more menu options
+
+    # profiling/pythonic code cleanup
