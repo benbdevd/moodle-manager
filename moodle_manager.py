@@ -41,7 +41,7 @@ PERSIST_CHOICE_PROMPTS = ['[P]assword + Username + Server URL',
 PERSIST_ENUMS = [prompt[1] for prompt in PERSIST_CHOICE_PROMPTS]
 DEFAULT_PERSIST_ENUM = PERSIST_ENUMS[1]
 DEFAULT_PERSIST_PATH = './.moodle_data.json'
-DEFAULT_DOWNLOAD_PATH = './moodle_course_documents/'
+DEFAULT_DOWNLOAD_PATH = './course_documents/'
 CEZAR_URL_FILTER = 'www.smcs.upei.ca/~ccampeanu'
 MOODLE_DOCUMENT_FILTER = 'mod/resource'
 
