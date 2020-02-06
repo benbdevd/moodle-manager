@@ -44,6 +44,7 @@ DEFAULT_PERSIST_PATH = './.moodle_data.json'
 DEFAULT_DOWNLOAD_PATH = './course_documents/'
 CEZAR_URL_FILTER = 'www.smcs.upei.ca/~ccampeanu'
 MOODLE_DOCUMENT_FILTER = 'mod/resource'
+MOODLE_DOCUMENT_URLPART = 'mod/resource/view.php?id='
 
 
 # GLOBALS
@@ -230,18 +231,20 @@ def is_cezar_course(links):
 
 def download_all_from_std_course(links, course_name):
     path = download_path + course_name + '/'
+
     document_links = [link for link in links if (
         server_url + MOODLE_DOCUMENT_FILTER) in link]
 
     for link in document_links:
-        if link not in download_history.keys():
-            document = get_moodle_document(link)
+        document_id = link.split('=')[1]
+        if document_id not in download_history.keys():
+            document = get_moodle_document(document_id)
             s_print_after('\t' + document[1], Style.GREEN, ' DONE')
             write_document(document[0], path, document[1])
-            download_history[document[2]] = document[1]
+            download_history[document_id] = document[1]
         else:
             s_print_after(
-                '\t' + download_history[link], Style.YELLOW, ' PREVIOUSLY DOWNLOADED')
+                '\t' + download_history[document_id], Style.YELLOW, ' PREVIOUSLY DOWNLOADED')
 
 
 def download_all_from_cezar_course(links, course_name):
@@ -270,11 +273,11 @@ def download_all_from_cezar_course(links, course_name):
     print('CEZAR COURSE: ' + course_name + ' - NOT YET SUPPORTED')
 
 
-def get_moodle_document(url):
-    document = session.get(url)
+def get_moodle_document(document_id):
+    document = session.get(server_url + MOODLE_DOCUMENT_URLPART + document_id)
     disp = document.headers['Content-disposition']
     document_name = re.findall('filename.+', disp)[0].split('"')[1]
-    return (document.content, document_name, url)
+    return (document.content, document_name)
 
 
 def write_document(document, path, filename):
