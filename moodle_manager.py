@@ -43,7 +43,7 @@ DEFAULT_PERSIST_PATH = './.moodle_data.json'
 
 
 # GLOBALS
-session = ''
+session = requests.Session()
 server_url = ''
 persist_dict = defaultdict(lambda: '')
 persist_path = DEFAULT_PERSIST_PATH
@@ -113,8 +113,7 @@ def get_persist_choice_from_user():
 
 
 def setup_for_scraping(server_url_local, username, password):
-    global session, server_url
-    session = requests.Session()
+    global server_url
     server_url = validate_server_url(server_url_local)
     login(username, password)
 
@@ -156,29 +155,26 @@ MENU
 
 
 def get_all_course_ids():
-    soup = get_my_courses_soup()
-    all_course_elements = soup.find_all(
-        'div', class_='card mb-3 courses-view-course-item')
-    return get_course_ids_from_elements(all_course_elements)
+    soup = get_page_soup(MY_COURSES_URLPART)
+    return get_course_ids_from_soup(soup)
 
 
 def get_current_course_ids():
-    soup = get_my_courses_soup()
+    soup = get_page_soup(MY_COURSES_URLPART)
     temp = soup.find(id='pc-for-in-progress')
-    current_course_elements = [
-        element for element in temp.contents[1].contents if element != '\n' and element != ' ']
-    return get_course_ids_from_elements(current_course_elements)
+    return get_course_ids_from_soup(temp)
 
 
-def get_my_courses_soup():
-    response = session.get(server_url + MY_COURSES_URLPART)
+def get_page_soup(urlpart):
+    response = session.get(server_url + urlpart)
     if(response.status_code == 200):
         return BS(response.text, 'html.parser')
     else:
         return -1
 
 
-def get_course_ids_from_elements(elements):
+def get_course_ids_from_soup(soup):
+    elements = soup.find_all(class_='card mb-3 courses-view-course-item')
     course_ids = [element.contents[1].attrs['href'].split(
         '=')[1] for element in elements]
     return course_ids
@@ -193,13 +189,16 @@ def download_all_documents_from_course_set(course_ids):
 
 
 def is_a_cezar_course(course_id):
-    pass
+    soup = get_page_soup(COURSE_VIEW_URLPART + course_id)
+    CEZAR_URL = 'www.smcs.upei.ca/~ccampeanu'
+    links = [str(link.get('href')) for link in soup.find_all('a')]
+    cezar_links = [link for link in links if CEZAR_URL in link]
+    return len(cezar_links) > 0
 
 
 def download_all_from_std_course(course_id):
-    response = session.get(server_url + COURSE_VIEW_URLPART + course_id)
-    soup = BS(response.text, 'html.parser')
-    links = soup.findAll(class_='activityinstance')
+    soup = get_page_soup(COURSE_VIEW_URLPART + course_id)
+    links = soup.find_all(class_='activityinstance')
 
     print('Downloading:')
     print('===========')
@@ -211,7 +210,7 @@ def download_all_from_std_course(course_id):
         print(name)
         url = link.a['href']
         document = get_moodle_document(url)
-        write_document(document['doc'], document['name'])
+        write_document(document['document'], document['name'])
         # config['downloaded'].append(name)
         print('\t', document['name'])
 
@@ -254,10 +253,9 @@ def get_moodle_document(url):
     }
 
 
-def write_document(document, name):
-    file = open(name, 'wb')
-    file.write(document)
-    file.close
+def write_document(document, path):
+    with open(path, 'wb') as file:
+        file.write(document)
 
 
 def write_to_persist():
@@ -291,7 +289,9 @@ if __name__ == '__main__':
 
     course_ids = main_menu()
 
-    print('Selected courses:' + str(course_ids))
+    out = list(zip(course_ids, map(is_a_cezar_course, course_ids)))
+
+    print('Selected courses:' + str(out))
 
     write_to_persist()  # update download history
 
