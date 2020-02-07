@@ -72,8 +72,7 @@ def s_print(s, style):
 
 
 def s_print_after(s, style, a):
-    print(s, end='')
-    s_print(a, style)
+    print(s + style + a + Style._END)
 
 
 def load_from_persist():
@@ -272,7 +271,8 @@ def download_all_from_cezar_course(links, course_name):
     #     print(name)
     #     document = session.get(link).content
     #     write_document(document, name)
-    print('CEZAR COURSE: ' + course_name + ' - NOT YET SUPPORTED')
+    s_print('CEZAR COURSE: ' + course_name +
+            ' - NOT YET SUPPORTED', Style.YELLOW)
 
 
 def get_moodle_document(document_id):
