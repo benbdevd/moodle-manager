@@ -197,14 +197,6 @@ def get_course_ids_from_soup(soup):
         '=')[1] for element in elements]
     return course_ids
 
-# get_course_ids_from_soup ALTERNATIVE - zip name at this point
-    # elements = temp.find_all('a')
-    # course_a_tags = [a_tag for a_tag in elements if COURSE_VIEW_URLPART in a_tag.attrs['href']
-    #                   and not any(map(lambda x: True if '<div ' in str(x) else False, a_tag.contents))]
-    # course_ids = [course.attrs['href'].split('=')[1] for course in course_a_tags]
-    # course_names = [course.contents[0] for course in course_a_tags]
-    # return(list(zip(course_ids, course_names)))
-
 
 def download_all_documents_from_course_set(course_ids):
     [download_all_documents_from_course(course_id) for course_id in course_ids]
